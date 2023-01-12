@@ -13,7 +13,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 addon.name = 'GlamourUI';
 addon.author = 'Banggugyangu';
 addon.desc = "A modular and customizable interface for FFXI";
-addon.version = '0.4.3';
+addon.version = '0.4.5';
 
 local imgui = require('imgui')
 
@@ -31,6 +31,7 @@ local default_settings = T{
 
     partylist = T{
         enabled = true,
+        bgOpacity = 1,
         font_scale = 1.5,
         gui_scale = 1,
         layout = 'Default',
@@ -105,7 +106,9 @@ local default_settings = T{
             l = 200,
             g = 16
         }
-    }
+    },
+
+    font = 'SpicyTaste'
 
 };
 
@@ -137,8 +140,12 @@ glamourUI = T{
             y = 0
         },
         padding = 0
-    }
+    },
+    font = nil
 }
+
+local font = nil;
+
 
 settings.register('settings', 'settings_update', function(s)
     if (s ~=nil) then
@@ -150,12 +157,21 @@ end);
 
 local party = AshitaCore:GetMemoryManager():GetParty();
 
+local chatIsOpen = false;
+
 function render_party_list()
     pokeCache(glamourUI.settings);
+    local menu = getMenu();
 
-    if (glamourUI.settings.partylist.enabled) then
+    if(menu == 'fulllog')then
+        chatIsOpen = true;
+    elseif(menu == 'logwindo' or menu == nil)then
+        chatIsOpen = false;
+    end
 
-        imgui.SetNextWindowBgAlpha(.3);
+    if (glamourUI.settings.partylist.enabled and chatIsOpen == false) then
+
+        imgui.SetNextWindowBgAlpha(glamourUI.settings.partylist.bgOpacity);
         imgui.SetNextWindowSize({ -1, -1, }, ImGuiCond_Always);
         imgui.SetNextWindowPos({glamourUI.settings.partylist.x, glamourUI.settings.partylist.y}, ImGuiCond_FirstUseEver);
 
@@ -175,7 +191,7 @@ function render_party_list()
             end
 
 
-            if (imgui.Begin('PartyList', glamourUI.is_open, bit.bor(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoBackground))) then
+            if (imgui.Begin('PartyList', glamourUI.is_open, bit.bor(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_AlwaysAutoResize))) then
                 local party = AshitaCore:GetMemoryManager():GetParty()
                 local partyCount = 0;
                 for i = 1,6,1 do
@@ -273,6 +289,7 @@ function render_party_list()
             if (imgui.Begin('PartyList', glamourUI.is_open, bit.bor(ImGuiWindowFlags_NoDecoration, ImGuiWindowFlags_AlwaysAutoResize, ImGuiWindowFlags_NoBackground))) then
                 local party = AshitaCore:GetMemoryManager():GetParty()
                 local partyCount = 0;
+
                 for i = 1,6,1 do
                     if(AshitaCore:GetMemoryManager():GetParty():GetMemberIsActive(i-1) > 0) then
                         partyCount = partyCount +1;
@@ -284,6 +301,7 @@ function render_party_list()
                     player = 0;
                 end
                 local pet = GetEntity(player.PetTargetIndex);
+
 
                 -- PLayer Rendering
                 imgui.SetWindowFontScale((glamourUI.settings.partylist.font_scale));
@@ -395,6 +413,7 @@ function render_party_list()
                     imgui.Text(tostring(AshitaCore:GetMemoryManager():GetPlayer():GetPetTP()));
                 end
             end
+
             imgui.End();
 
         end
@@ -454,6 +473,7 @@ function render_target_bar()
                     end
 
                 else
+                    local lockedTex = getTex(glamourUI.settings, 'targetbar', 'LockOn.png');
                     imgui.Text(targetEntity.Name);
                     if(IsTargetLocked() and glamourUI.settings.targetbar.lockIndicator == true) then
                         imgui.PushStyleColor(ImGuiCol_PlotHistogram, { 0.0, 1.0, 1.0, 1.0 });
@@ -627,14 +647,13 @@ end
 
 function render_debug_panel()
     if(dbug == true) then
+        local rect = AshitaCore:GetProperties():GetFinalFantasyHwnd();
         imgui.SetNextWindowSize({-1, -1}, ImGuiCond_Always);
         imgui.SetNextWindowPos({12, 12}, ImGuiCond_FirstUseEver);
         if(imgui.Begin('Debug'))then
-            imgui.Text(tostring(getZone(1)));
-            imgui.Text(tostring(AshitaCore:GetResourceManager():GetString('zones.names', AshitaCore:GetMemoryManager():GetParty():GetMemberZone(1))));
-            if(imgui.Button('Load value from Layout'))then
-                loadLayout('Default');
-            end
+            --imgui.PushFont(glamourUI.font);
+            imgui.Text(tostring(getMenu()));
+            --imgui.PopFont();
         end
         imgui.End();
     end
@@ -773,6 +792,7 @@ ashita.events.register('load', 'load_cb', function()
     end
     require('conf')
     loadLayout(glamourUI.settings.partylist.layout);
+    loadFont(glamourUI.settings.font);
 end)
 
 ashita.events.register('unload', 'unload_cb', function()
